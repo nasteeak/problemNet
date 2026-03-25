@@ -3,12 +3,78 @@
 namespace App\Http\Controllers;
 
 use App\Models\Report;
+use App\Models\Status;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    public function index(){
-        $reports = Report::all();
-        return view('report.index', compact('reports'));
+    public function index(Request $request)
+    {
+        $sort = $request->input('sort');
+        if($sort != 'asc' && $sort != 'desc' ){
+            $sort = 'desc';
+        }
+        
+        $status = $request->input('status');
+
+        $validate = $request->validate([
+            'status' => 'exists:statuses,id'
+        ]);
+
+        if ($validate) {
+            $reports = Report::where('status_id', $status)
+                ->orderBy('created_at', $sort)
+                ->paginate(8);
+        } else {
+            if ($sort == 'asc' || $sort == 'desc') {
+                $reports = Report::orderBy('created_at', $sort)->paginate(8);
+            } else {
+                $reports = Report::paginate(8);
+            }
+        }
+
+        $statuses = Status::all();
+
+        return view('report.index', compact('reports', 'statuses', 'sort', 'status'));
+    }
+
+    public function create()
+    {
+        return view('report.create');
+    }
+
+    public function store(Request $request, Report $report)
+    {
+        $data = $request->validate([
+            'number' => 'required|string',
+            'description' => 'required|string',
+        ]);
+
+        $data['status_id'] = 1;
+
+        $report::create($data);
+        return redirect()->route('reports.index');;
+    }
+
+    public function destroy(Report $report)
+    {
+        $report->delete();
+        return redirect()->back();
+    }
+
+    public function edit(Report $report)
+    {
+        return view('report.edit', compact('report'));
+    }
+
+    public function update(Request $request, Report $report)
+    {
+        $data = $request->validate([
+            'number' => 'required|string',
+            'description' => 'required|string',
+        ]);
+
+        $report->update($data);
+        return redirect()->route('reports.index');
     }
 }
